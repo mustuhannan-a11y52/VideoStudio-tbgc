@@ -678,12 +678,25 @@
   const renderError = document.getElementById('render-error');
 
   let ffmpegInstance = null;
+  let ffmpegLoadingPromise = null;
   async function getFFmpeg(){
-    if(ffmpegInstance) return ffmpegInstance;
-    const { createFFmpeg } = FFmpeg;
-    ffmpegInstance = createFFmpeg({ log: true });
-    await ffmpegInstance.load();
-    return ffmpegInstance;
+    if(ffmpegInstance && ffmpegInstance.isLoaded()) return ffmpegInstance;
+    if(!ffmpegLoadingPromise){
+      const { createFFmpeg } = FFmpeg;
+      const inst = createFFmpeg({
+        log: true,
+        corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
+      });
+      ffmpegLoadingPromise = inst.load().then(() => {
+        if(!inst.isLoaded()) throw new Error('ffmpeg core loaded but isLoaded() still false');
+        ffmpegInstance = inst;
+        return inst;
+      }).catch(err => {
+        ffmpegLoadingPromise = null;
+        throw err;
+      });
+    }
+    return ffmpegLoadingPromise;
   }
 
   function fontNameOnly(f){ return f.split(',')[0].replace(/'/g, ''); }
